@@ -1,11 +1,15 @@
 require_relative('../db/sql_runner.rb')
+require_relative('film.rb')
 require('pry-byebug')
 
 class Customer
 
+  attr_reader :id, :name, :funds
+
+
   def initialize(options)
     @name = options['name']
-    @funds = options['funds']
+    @funds = options['funds'].to_f()
     @id = options['id'].to_i if options['id']
   end
 
@@ -19,6 +23,52 @@ class Customer
     # binding.pry
   end
 
+  def update()
+    sql = "UPDATE customers SET
+      name = $1,
+      funds = $2
+      WHERE id = $3;"
+    values = [@name, @funds, @id]
+    SqlRunner.run(sql, values)
+  end
+
+  def films
+    sql = "SELECT films.*
+      FROM films INNER JOIN tickets
+      ON films.id = tickets.film_id
+      WHERE tickets.customer_id = $1"
+      values = [@id]
+      films_pg = SqlRunner.run(sql, values)
+      return Film.map_pg_object(films_pg)
+  end
+
+  def pay(cost)
+    @funds -= cost if @funds > cost
+  end
+
+  def buy_ticket(film)
+
+
+    # sql = "SELECT films.price
+    #   FROM films
+    #   INNER JOIN tickets
+    #   ON tickets.film_id = $1"
+    #   values = [film.id]
+    # ticket_price = SqlRunner.run(sql, values)[0]['price'].to_f
+    pay(film.price)
+    new_ticket_issue = Ticket.new({'customer_id' => @id, 'film_id' => film.id })
+    new_ticket_issue.save()
+    self.update()
+  end
+
+  def tickets_bought()
+    sql = "SELECT *
+      FROM tickets
+      WHERE tickets.customer_id = $1"
+    tickets_bought = SqlRunner.run(sql, [@id])
+    return tickets_bought.cmd_tuples
+  end
+
   def Customer.all()
     sql = "SELECT * FROM customers;"
     customers_pg_format = SqlRunner.run(sql)
@@ -27,5 +77,10 @@ class Customer
 
   def Customer.map_customers(customer_hashes)
     return customer_hashes.map{|customer_hash| Customer.new(customer_hash)}
+  end
+
+  def Customer.delete_all()
+    sql = "DELETE FROM customers;"
+    SqlRunner.run(sql)
   end
 end
