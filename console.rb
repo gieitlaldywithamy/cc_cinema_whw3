@@ -9,5 +9,6 @@ film1.save()
 ticket1 = Ticket.new({'customer_id'=> 1, 'film_id' => 1})
 ticket1.save()
 
-p Film.all()
-p Customer.all()
+p Film.all().length()
+p Customer.all.length()
+p Ticket.all().length()
