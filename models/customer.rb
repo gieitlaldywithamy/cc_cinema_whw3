@@ -33,32 +33,38 @@ class Customer
   end
 
   def films
-    sql = "SELECT films.*
-      FROM films INNER JOIN tickets
-      ON films.id = tickets.film_id
-      WHERE tickets.customer_id = $1"
-      values = [@id]
-      films_pg = SqlRunner.run(sql, values)
-      return Film.map_pg_object(films_pg)
+    sql = "SELECT DISTINCT title FROM films
+          INNER JOIN screenings ON screenings.film_id = films.id
+          INNER JOIN tickets ON screenings.id = tickets.screening_id
+          WHERE tickets.customer_id = $1;
+          "
+    films_pg =  SqlRunner.run(sql, [@id])
+    return Film.map_pg_object(films_pg)
   end
 
   def pay(cost)
     @funds -= cost if @funds > cost
   end
 
-  def buy_ticket(film)
+  #   wouldnt buy a ticket for a film since changing structure
+  # def buy_ticket(film)
 
+  #   pay(film.price)
+  #   new_ticket_issue = Ticket.new({'customer_id' => @id, 'film_id' => film.id })
+  #   new_ticket_issue.save()
+  #   self.update()
+  # end
 
-    # sql = "SELECT films.price
-    #   FROM films
-    #   INNER JOIN tickets
-    #   ON tickets.film_id = $1"
-    #   values = [film.id]
-    # ticket_price = SqlRunner.run(sql, values)[0]['price'].to_f
-    pay(film.price)
-    new_ticket_issue = Ticket.new({'customer_id' => @id, 'film_id' => film.id })
+  def buy_ticket(screening)
+    sql = "SELECT films.price
+          FROM films
+          INNER JOIN screenings ON films.id = screenings.film_id"
+    price = SqlRunner.run(sql)[0]['price']
+    pay(price)
+    new_ticket_issue = Ticket.new({'customer_id' => @id, 'screening_id' => screening.id })
     new_ticket_issue.save()
-    self.update()
+    nil
+
   end
 
   def tickets_bought()
@@ -83,4 +89,6 @@ class Customer
     sql = "DELETE FROM customers;"
     SqlRunner.run(sql)
   end
+
+
 end

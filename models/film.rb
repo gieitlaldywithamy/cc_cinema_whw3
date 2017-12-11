@@ -1,3 +1,5 @@
+require('pry-byebug')
+
 class Film
 
   attr_reader :id, :price
@@ -6,40 +8,55 @@ class Film
   def initialize(options)
     @title = options['title']
     @price = options['price']
-    @start_time = options['start_time']
     @id = options['id'].to_i() if options['id']
   end
 
   def save()
-    sql = "INSERT INTO films (title, price, start_time) VALUES ($1, $2, $3)
+    sql = "INSERT INTO films (title, price) VALUES ($1, $2)
           RETURNING id;"
-    values = [@title, @price, @start_time]
+    values = [@title, @price]
     pg_id_result = SqlRunner.run(sql, values)[0]
     @id = pg_id_result['id'].to_i()
   end
 
   def update()
-    sql = "UPDATE films SET (title, price, start_time) = ($1, $2, $3) WHERE id = $4;"
-    values = [@title, @price, @start_time, @id]
+    sql = "UPDATE films SET (title, price) = ($1, $2) WHERE id = $3;"
+    values = [@title, @price, @id]
     SqlRunner.run(sql, values)
   end
 
-  def audience()
-    sql = "
-    SELECT customers.*
-    FROM customers
-    INNER JOIN tickets
-    ON customers.id = tickets.customer_id
-    WHERE $1 = tickets.film_id
-    "
+  def num_screenings()
+    sql = "SELECT COUNT(*) FROM screenings WHERE screenings.film_id = $1"
     values = [@id]
-    audience = Customer.map_customers(SqlRunner.run(sql, values))
-    return audience
+    screenings = SqlRunner.run(sql, values)
+    return screenings[0]['count']
   end
 
+  def busiest_time()
+     sql = "SELECT screenings.start_time, COUNT(*)
+             FROM screenings
+             INNER JOIN tickets
+             ON tickets.screening_id = screenings.id
+           WHERE screenings.film_id = $1
+          GROUP BY screenings.start_time
+
+     "
+     values = [@id]
+     results = SqlRunner.run(sql, values)
+     most_popular_result = results.max_by{|k,v| v}
+     return most_popular_result['start_time']
+   end
+  # end
+
+
+
   def times()
-    sql = "SELECT start_time FROM films WHERE films.title = $1"
-    values = [@title]
+    sql = "SELECT screenings.start_time
+    FROM films
+    INNER JOIN screenings
+    ON films.id = screenings.film_id
+    WHERE films.id= $1"
+    values = [@id]
     times = SqlRunner.run(sql, values)
     return times.values().reduce(:concat)
   end
@@ -61,11 +78,21 @@ class Film
     return films.values.reduce(:concat)
   end
 
-  def Film.times()
-    sql = "SELECT start_time FROM films ORDER BY title;"
-    films = SqlRunner.run(sql)
-    return films.values.reduce(:concat)
+  def Film.get_name_by_id(id)
+    sql = "SELECT title FROM films WHERE films.id=$1"
+    pg_name = SqlRunner.run(sql, [id])
+    begin
+      return pg_name[0]['title']
+    rescue IndexError
+      return 'nil'
+    end
   end
+
+  # def Film.times()
+  #   sql = "SELECT start_time FROM films ORDER BY title;"
+  #   films = SqlRunner.run(sql)
+  #   return films.values.reduce(:concat)
+  # end
 
   def Film.delete_all()
     sql = "DELETE FROM films"

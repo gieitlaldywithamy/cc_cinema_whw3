@@ -1,23 +1,23 @@
 class Ticket
 
-  
+
   attr_accessor :customer_id, :film_id
 
   def initialize(options)
     @customer_id = options['customer_id']
-    @film_id = options['film_id']
+    @screening_id = options['screening_id']
     @id = options['id'].to_i() if options['id']
   end
 
   def save()
-    sql = "INSERT INTO tickets (customer_id, film_id) VALUES($1, $2) RETURNING id;"
-    values = [@customer_id, @film_id]
+    sql = "INSERT INTO tickets (customer_id, screening_id) VALUES($1, $2) RETURNING id;"
+    values = [@customer_id, @screening_id]
     pg_id_result = SqlRunner.run(sql, values)
     @id = pg_id_result[0]['id'].to_i()
   end
 
   def update()
-    sql = "UPDATE tickets SET customer_id=$1, film_id=$2 WHERE id=$3"
+    sql = "UPDATE tickets SET customer_id=$1, screening_id=$2 WHERE id=$3"
     values = [@customer_id, @film_id, @id]
     SqlRunner.run(sql, values)
     # do i want to return anything?
